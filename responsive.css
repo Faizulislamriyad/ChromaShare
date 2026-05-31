@@ -1,0 +1,284 @@
+/* responsive.css - Mobile & Tablet Overrides (does NOT affect desktop) */
+
+/* ---------- Tablet and below (max-width: 1024px) ---------- */
+@media (max-width: 1024px) {
+  .app-container {
+    padding: 1rem;
+  }
+}
+
+/* ---------- Mobile Landscape & Portrait (max-width: 768px) ---------- */
+@media (max-width: 768px) {
+  /* General container */
+  .app-container {
+    padding: 0.75rem;
+  }
+
+  /* Header – keep navigation in one scrollable line */
+  .main-header {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.75rem;
+    padding: 0.6rem 1rem;
+    border-radius: 1.5rem;
+  }
+  .main-header::-webkit-scrollbar {
+    display: none;
+  }
+  .logo {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+  .nav-links {
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    gap: 0.25rem;
+  }
+  .nav-btn {
+    padding: 0.4rem 0.9rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  /* Home – palette grid */
+  .palettes-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  .palette-swatch-row {
+    height: 80px;
+  }
+  .card-content {
+    padding: 0.8rem;
+  }
+  .user-avatar {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  .palette-actions button {
+    padding: 0.25rem 0.7rem;
+    font-size: 0.65rem;
+    height: 26px;
+  }
+  .like-btn, .dislike-btn {
+    padding: 3px 6px;
+    font-size: 0.7rem;
+  }
+
+  /* Community – Facebook style mobile layout */
+  .community-layout {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .suggestions-sidebar {
+    position: static;
+    width: 100%;
+  }
+  .community-post {
+    padding: 0.8rem;
+  }
+  .post-avatar {
+    width: 36px;
+    height: 36px;
+  }
+  .post-text {
+    font-size: 0.9rem;
+  }
+  .post-reactions {
+    gap: 12px;
+  }
+  .reaction-btn {
+    font-size: 0.85rem;
+    padding: 4px 6px;
+  }
+  .comment-avatar-img {
+    width: 28px;
+    height: 28px;
+  }
+  .comment-body {
+    padding: 6px 10px;
+  }
+  .add-comment-avatar {
+    width: 28px;
+    height: 28px;
+  }
+  .comment-input {
+    font-size: 0.8rem;
+    padding: 6px 10px;
+  }
+
+  /* Chatbot – DeepSeek style */
+  .chat-container {
+    height: 75vh;
+  }
+  .chat-messages {
+    padding: 1rem;
+  }
+  .message {
+    max-width: 95%;
+  }
+  .avatar {
+    width: 32px;
+    height: 32px;
+  }
+  .message-bubble {
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+  }
+  .chat-input-area {
+    padding: 0.8rem;
+  }
+  .chat-input-area textarea {
+    font-size: 0.85rem;
+    padding: 0.6rem 1rem;
+  }
+  .send-btn, .random-btn {
+    height: 40px;
+    padding: 0 1rem;
+    font-size: 0.8rem;
+  }
+  .swatch-item {
+    width: 85px;
+  }
+  .swatch-color {
+    height: 60px;
+  }
+  .post-palette-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+  }
+  .generated-image-container {
+    max-width: 240px;
+  }
+
+  /* Profile page */
+  .profile-container {
+    border-radius: 1.5rem;
+  }
+  .profile-header {
+    padding: 1.5rem 1rem 1.2rem;
+  }
+  .profile-avatar {
+    width: 90px;
+    height: 90px;
+  }
+  #profileUsername {
+    font-size: 1.4rem;
+  }
+  .profile-info {
+    margin: 1rem;
+    padding: 1rem;
+  }
+  .edit-profile-btn, .logout-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+  .my-post-card {
+    padding: 0.8rem;
+  }
+
+  /* Modals */
+  .modal-content {
+    padding: 1.5rem;
+    width: 92%;
+  }
+
+  /* Toast */
+  .toast {
+    bottom: 15px;
+    right: 15px;
+    left: 15px;
+    max-width: 90%;
+    font-size: 0.8rem;
+  }
+
+  /* Footer */
+  footer {
+    margin-top: 1.5rem;
+    font-size: 0.7rem;
+  }
+}
+
+/* ---------- Small phones (max-width: 480px) ---------- */
+@media (max-width: 480px) {
+  .app-container {
+    padding: 0.5rem;
+  }
+  .main-header {
+    padding: 0.5rem 0.8rem;
+  }
+  .logo {
+    font-size: 1rem;
+  }
+  .nav-btn {
+    padding: 0.3rem 0.7rem;
+    font-size: 0.75rem;
+  }
+  .palette-swatch-row {
+    height: 70px;
+  }
+  .user-avatar {
+    width: 36px !important;
+    height: 36px !important;
+  }
+  .swatch-item {
+    width: 70px;
+  }
+  .swatch-color {
+    height: 50px;
+  }
+  .profile-avatar {
+    width: 75px;
+    height: 75px;
+  }
+  #profileUsername {
+    font-size: 1.2rem;
+  }
+  .post-avatar {
+    width: 32px;
+    height: 32px;
+  }
+  .reaction-btn {
+    font-size: 0.75rem;
+  }
+}
+
+/* ---------- Very narrow devices (max-width: 360px) ---------- */
+@media (max-width: 360px) {
+  .post-reactions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .swatch-item {
+    width: 60px;
+  }
+  .swatch-color {
+    height: 45px;
+  }
+  .chat-input-area {
+    flex-wrap: wrap;
+  }
+  .chat-input-area textarea {
+    width: 100%;
+    order: 1;
+  }
+  .send-btn, .random-btn {
+    flex: 1;
+    order: 2;
+  }
+}
+
+/* ---------- Touch-friendly tap targets ---------- */
+@media (hover: none) and (pointer: coarse) {
+  button, .nav-btn, .reaction-btn, .comment-submit, .reply-submit,
+  .follow-suggestion-btn, .post-palette-btn, .submit-post-btn,
+  .edit-profile-btn, .logout-btn, .upload-icon, .swatch-item,
+  .delete-btn, .copy-all-btn, .share-palette-btn, .ask-bot-btn {
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  button:active, .nav-btn:active, .reaction-btn:active {
+    transform: scale(0.97);
+  }
+}

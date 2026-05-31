@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>ChromaShare | Color Community</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="responsive.css">
+  <!-- Firebase compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+  <script src="script.js"></script>
+  <script src="login.js"></script>
+  <script src="profile.js"></script>
+  <script src="chatbot.js"></script>
+  <script src="community.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="main-header">
+      <div class="logo"><i class="fas fa-palette"></i> ChromaShare</div>
+      <nav class="nav-links">
+        <button class="nav-btn" data-section="home"><i class="fas fa-home"></i> Home</button>
+        <button class="nav-btn" data-section="community"><i class="fas fa-users"></i> Community</button>
+        <button class="nav-btn" data-section="chatbot"><i class="fas fa-comment-dots"></i> ColorBot</button>
+        <button class="nav-btn" data-section="profile" id="profileNavBtn" style="display: none;"><i class="fas fa-user-circle"></i> Profile</button>
+        <button class="nav-btn" id="authBtn"><i class="fas fa-sign-in-alt"></i> Login</button>
+      </nav>
+    </header>
+
+    <main id="mainContent">
+      <!-- Auth Modal -->
+      <div id="authModal" class="modal">
+        <div class="modal-content">
+          <span class="close">&times;</span>
+          <div id="loginForm">
+            <h3>Login / Sign up</h3>
+            <input type="email" id="loginEmail" placeholder="Email">
+            <input type="password" id="loginPassword" placeholder="Password">
+            <button id="loginBtn">Login</button>
+            <button id="googleLoginBtn"><i class="fab fa-google"></i> Continue with Google</button>
+            <p>New user? <span id="showSignup" style="cursor:pointer;color:#3b82f6;">Create account</span></p>
+          </div>
+          <div id="signupForm" style="display:none;">
+            <h3>Sign Up</h3>
+            <input type="email" id="signupEmail" placeholder="Email">
+            <input type="password" id="signupPassword" placeholder="Password (min 6 chars)">
+            <input type="text" id="signupUsername" placeholder="Username">
+            <button id="signupBtn">Sign Up</button>
+            <p>Already have account? <span id="showLogin" style="cursor:pointer;color:#3b82f6;">Login</span></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Palette Name Modal (for posting palettes) -->
+      <div id="paletteNameModal" class="modal">
+        <div class="modal-content" style="max-width: 350px;">
+          <span class="close-palette-modal">&times;</span>
+          <h3 style="margin-bottom: 1rem;">🎨 Name Your Palette</h3>
+          <input type="text" id="paletteNameInput" placeholder="e.g., Sunset Vibes" style="width: 100%; padding: 10px; border-radius: 2rem; border: 1px solid #cbd5e1; margin-bottom: 1rem;">
+          <button id="confirmPostBtn" style="background: #10b981; width: 100%;">Post to Community</button>
+          <button id="cancelPostBtn" style="background: #94a3b8; width: 100%; margin-top: 8px;">Cancel</button>
+        </div>
+      </div>
+
+      <!-- User Profile Modal (for Community) -->
+      <div id="userProfileModal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+          <span class="close close-profile-modal">&times;</span>
+          <div id="userProfileModalContent"></div>
+        </div>
+      </div>
+
+      <!-- Edit Post Modal (for editing user's own posts) -->
+      <div id="editPostModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+          <span class="close close-edit-modal">&times;</span>
+          <h3>Edit Your Post</h3>
+          <textarea id="editPostText" rows="4" style="width:100%; margin: 1rem 0; padding: 0.7rem; border-radius: 1rem; border: 1px solid #cbd5e1;"></textarea>
+          <button id="savePostEditBtn" style="background:#10b981; margin-right: 0.5rem;">Save Changes</button>
+          <button id="cancelPostEditBtn" style="background:#94a3b8;">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Home Section -->
+      <section id="homeSection" class="section active">
+        <div class="section-header">
+          <h2><i class="fas fa-globe"></i> Community Palettes</h2>
+        </div>
+        <div id="publicPalettesGrid" class="palettes-grid">Loading inspiring colors...</div>
+      </section>
+
+      <!-- Chatbot Section -->
+      <section id="chatbotSection" class="section">
+        <div class="chat-container">
+          <div class="chat-messages" id="chatMessages">
+            <div class="message bot">
+              <div class="avatar"><i class="fas fa-robot"></i></div>
+              <div class="message-bubble">👋 Hey! I'm your color assistant. Send me a hex code (e.g., #3B82F6) or a color name like "blue", and I'll generate a beautiful palette. Ask me "what matches red?" or just type a color!</div>
+            </div>
+          </div>
+          <div class="chat-input-area">
+            <textarea id="chatInput" rows="1" placeholder="#FF5733 or 'blue' or 'what matches red?' (you can paste multiple lines)" style="resize: none; overflow-y: hidden;"></textarea>
+            <button id="sendColorBtn" class="send-btn"><i class="fas fa-paper-plane"></i> Send</button>
+            <button id="randomColorBtn" class="random-btn"><i class="fas fa-dice"></i> Random</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Community Section (two‑column layout) -->
+      <section id="communitySection" class="section">
+        <div class="section-header">
+          <h2><i class="fas fa-newspaper"></i> Community Feed</h2>
+        </div>
+        <div class="community-layout">
+          <div class="community-feed">
+            <div id="createPostContainer"></div>
+            <div id="communityFeedContainer"></div>
+          </div>
+          <div class="suggestions-sidebar">
+            <h3><i class="fas fa-user-plus"></i> Suggestions</h3>
+            <div id="suggestionsContainer"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Profile Section -->
+      <section id="profileSection" class="section">
+        <div class="profile-container">
+          <div class="profile-header">
+            <div class="profile-avatar">
+              <img id="avatarImg" src="" alt="avatar">
+              <label for="avatarUpload" class="upload-icon"><i class="fas fa-camera"></i></label>
+              <input type="file" id="avatarUpload" accept="image/*" style="display:none">
+            </div>
+            <h2 id="profileUsername">Username</h2>
+            <p id="profileBio">Bio will appear here</p>
+          </div>
+          <div class="profile-info">
+            <p><i class="fas fa-heart"></i> Favorite Color: <span id="profileFavColor">-</span></p>
+            <p><i class="fas fa-birthday-cake"></i> Birthday: <span id="profileBirthday">-</span></p>
+          </div>
+          <button id="editProfileBtn" class="edit-profile-btn"><i class="fas fa-edit"></i> Edit Profile</button>
+          <div id="editProfileForm" style="display:none;">
+            <input type="text" id="editUsername" placeholder="Username">
+            <textarea id="editBio" placeholder="Bio"></textarea>
+            <input type="color" id="editFavColor" value="#3b82f6">
+            <input type="date" id="editBirthday">
+            <button id="saveProfileBtn">Save Changes</button>
+            <button id="cancelEditBtn">Cancel</button>
+          </div>
+          <button id="logoutBtn" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</button>
+
+          <!-- My Posts Section (for logged-in user) -->
+          <div class="my-posts-section">
+            <h3><i class="fas fa-history"></i> My Posts</h3>
+            <div id="myPostsContainer"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer>✨ Share your palette, inspire the world ✨</footer>
+  </div>
+</body>
+</html>
