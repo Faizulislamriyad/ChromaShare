@@ -1,0 +1,534 @@
+/* ========== PREMIUM MESSENGER-STYLE CSS ========== */
+/* Complete replacement – refined chat bubbles, large input, Messenger look */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
+.floating-buttons {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    z-index: 1050;
+}
+
+.floating-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: white;
+    border: none;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    font-size: 24px;
+    color: #1b74e4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+    position: relative;
+}
+
+.floating-btn:hover {
+    transform: scale(1.08);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+    background: #ffffff;
+    color: #0c63d4;
+}
+
+.floating-btn:active {
+    transform: scale(0.96);
+}
+
+.notification-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #e41e3f;
+    color: white;
+    border-radius: 30px;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* ========== MODAL BACKDROP ========== */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(6px);
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    animation: fadeInModal 0.2s ease-out;
+}
+
+@keyframes fadeInModal {
+    from { opacity: 0; backdrop-filter: blur(0px); }
+    to { opacity: 1; backdrop-filter: blur(6px); }
+}
+
+.modal-content {
+    background: #ffffff;
+    border-radius: 28px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 85vh;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+    display: flex;
+    flex-direction: column;
+    animation: slideUpModal 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+}
+
+@keyframes slideUpModal {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-content .close {
+    position: absolute;
+    top: 18px;
+    right: 20px;
+    font-size: 28px;
+    font-weight: 400;
+    color: #5f6b7a;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #f0f2f5;
+    z-index: 15;
+    transition: all 0.2s;
+}
+
+.modal-content .close:hover {
+    background: #e4e6e9;
+    color: #1b1f24;
+}
+
+.modal-content h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    color: #050505;
+    padding: 20px 24px 12px 24px;
+    border-bottom: 1px solid #eef2f6;
+    background: white;
+}
+
+/* ========== CHAT MODAL – MESSENGER STYLE ========== */
+.modal-chat {
+    max-width: 480px;
+    width: 95%;
+    height: 700px;
+    max-height: 85vh;
+    border-radius: 28px;
+}
+
+/* Conversation List (threads) */
+.conversation-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+    background: #ffffff;
+}
+
+.conversation-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 20px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    margin: 2px 0;
+}
+
+.conversation-item:hover {
+    background: #f0f2f5;
+}
+
+.conversation-item.active {
+    background: #e7f3ff;
+}
+
+.conv-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: linear-gradient(145deg, #ccd3db, #b8c1cc);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.conv-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.conv-name {
+    font-weight: 600;
+    font-size: 1rem;
+    color: #050505;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.conv-last-msg {
+    font-size: 0.8rem;
+    color: #65676b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.conv-time {
+    font-size: 0.7rem;
+    color: #8f959e;
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+/* Chat View (individual conversation) */
+#chatView {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #ffffff;
+}
+
+.chat-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    background: #ffffff;
+    border-bottom: 1px solid #eef2f6;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#backToConvBtn {
+    background: transparent;
+    border: none;
+    font-size: 1.4rem;
+    cursor: pointer;
+    color: #1b74e4;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+#backToConvBtn:hover {
+    background: #f0f2f5;
+}
+
+.chat-header-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+#chatModalTitle {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: #050505;
+    flex: 1;
+}
+
+/* ========== MESSENGER-STYLE MESSAGE BUBBLES ========== */
+.chat-messages-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #f8f9fc;
+    scroll-behavior: smooth;
+}
+
+.message-row {
+    display: flex;
+    width: 100%;
+}
+
+.message-row.incoming {
+    justify-content: flex-start;
+}
+
+.message-row.outgoing {
+    justify-content: flex-end;
+}
+
+.message-bubble {
+    max-width: 75%;
+    padding: 10px 14px;
+    border-radius: 22px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    word-wrap: break-word;
+    position: relative;
+    box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.05);
+}
+
+/* Incoming (gray) bubble - Messenger style */
+.message-row.incoming .message-bubble {
+    background: #e4e6eb;
+    color: #050505;
+    border-bottom-left-radius: 6px;
+}
+
+/* Outgoing (blue) bubble - Messenger style */
+.message-row.outgoing .message-bubble {
+    background: #0084ff;
+    color: white;
+    border-bottom-right-radius: 6px;
+}
+
+.message-time {
+    font-size: 0.65rem;
+    margin-top: 4px;
+    opacity: 0.7;
+    display: block;
+    text-align: right;
+}
+
+/* ========== BIG INPUT FIELD (Messenger large style) ========== */
+.chat-input-container {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    padding: 16px 18px;
+    background: white;
+    border-top: 1px solid #eef2f6;
+    border-radius: 0 0 28px 28px;
+}
+
+#chatInputField {
+    flex: 1;
+    border: none;
+    border-radius: 30px;
+    padding: 14px 20px;
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    font-weight: 400;
+    resize: none;
+    max-height: 120px;
+    background: #f0f2f5;
+    transition: all 0.2s ease;
+    line-height: 1.4;
+    color: #1c1e21;
+    /* Make it spacious like "write message..." */
+    min-height: 52px;
+    overflow-y: auto;
+}
+
+#chatInputField:focus {
+    outline: none;
+    background: #ffffff;
+    box-shadow: 0 0 0 1px #0084ff, 0 0 0 3px rgba(0, 132, 255, 0.2);
+}
+
+#chatInputField::placeholder {
+    color: #8a94a6;
+    font-size: 0.95rem;
+    font-weight: 400;
+    letter-spacing: -0.2px;
+}
+
+/* Big Send Button - Messenger vibe */
+#chatSendBtn {
+    background: #0084ff;
+    border: none;
+    color: white;
+    font-weight: 600;
+    padding: 12px 24px;
+    border-radius: 30px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    font-family: 'Inter', sans-serif;
+    letter-spacing: -0.2px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+#chatSendBtn:hover {
+    background: #0073e6;
+    transform: scale(1.02);
+}
+
+#chatSendBtn:active {
+    transform: scale(0.97);
+}
+
+/* Custom scrollbar for chat */
+.chat-messages-container::-webkit-scrollbar,
+.conversation-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chat-messages-container::-webkit-scrollbar-track {
+    background: #f0f2f5;
+    border-radius: 10px;
+}
+
+.chat-messages-container::-webkit-scrollbar-thumb {
+    background: #c1c9d2;
+    border-radius: 10px;
+}
+
+/* ========== NOTIFICATION MODAL ========== */
+#notificationModal .modal-content {
+    max-width: 440px;
+}
+
+.notification-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+}
+
+.notification-item {
+    display: flex;
+    gap: 14px;
+    padding: 14px 20px;
+    border-bottom: 1px solid #eff2f6;
+    transition: background 0.2s;
+    cursor: pointer;
+}
+
+.notification-item:hover {
+    background: #f8f9fc;
+}
+
+.notif-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #e9edf2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #4b5c6e;
+    font-size: 20px;
+}
+
+.notif-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #111;
+    margin-bottom: 4px;
+}
+
+.notif-text {
+    font-size: 0.8rem;
+    color: #5c6a7a;
+    line-height: 1.3;
+}
+
+.notif-time {
+    font-size: 0.7rem;
+    color: #8f9aaa;
+    margin-top: 6px;
+}
+
+/* ========== RESPONSIVE (Mobile friendly) ========== */
+@media (max-width: 550px) {
+    .floating-buttons {
+        bottom: 18px;
+        right: 18px;
+        gap: 12px;
+    }
+
+    .floating-btn {
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+    }
+
+    .modal-chat {
+        width: 95%;
+        height: 85vh;
+    }
+
+    .message-bubble {
+        max-width: 85%;
+        font-size: 0.85rem;
+    }
+
+    .chat-input-container {
+        padding: 12px 14px;
+    }
+
+    #chatInputField {
+        padding: 12px 16px;
+        font-size: 0.9rem;
+        min-height: 48px;
+    }
+
+    #chatSendBtn {
+        padding: 10px 20px;
+        font-size: 0.85rem;
+    }
+
+    .conv-avatar {
+        width: 44px;
+        height: 44px;
+    }
+}
+
+/* Empty state styling */
+.chat-messages-container:empty::after {
+    content: "✨ No messages yet. Say hi!";
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    color: #8a99aa;
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 24px;
+}
+
+/* Accessibility & misc */
+button, .floating-btn, .close, #backToConvBtn {
+    cursor: pointer;
+    user-select: none;
+}
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #c1c9d2 #f0f2f5;
+}

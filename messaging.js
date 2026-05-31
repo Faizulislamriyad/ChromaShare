@@ -1,10 +1,9 @@
-// messaging.js – Real‑time chat (only between followers)
+// messaging.js – Real‑time chat (Messenger style)
 
 let currentChatConversations = [];
 let currentActiveChat = null;
 let messagesUnsubscribe = null;
 
-// Helper functions
 function escapeHtml(str) {
   return str.replace(/[&<>]/g, function(m) {
     if (m === '&') return '&amp;';
@@ -115,20 +114,28 @@ function renderConversationList() {
   });
 }
 
-// FIXED: Check if conversation exists; if not, create it first
 async function openChatConversation(convId, otherUserId, otherUserName, otherUserPhoto) {
   if (messagesUnsubscribe) messagesUnsubscribe();
   currentActiveChat = { conversationId: convId, otherUserId, otherUserName, otherUserPhoto };
+  
+  // Set chat header name and avatar
   document.getElementById('chatModalTitle').innerText = otherUserName;
+  const chatHeaderAvatar = document.getElementById('chatHeaderAvatar');
+  if (chatHeaderAvatar) {
+    chatHeaderAvatar.src = otherUserPhoto || MESSAGING_DEFAULT_AVATAR;
+    chatHeaderAvatar.onerror = () => { chatHeaderAvatar.src = MESSAGING_DEFAULT_AVATAR; };
+  }
+  
   const messagesContainer = document.getElementById('chatMessagesContainer');
   messagesContainer.innerHTML = '<div class="loading">Loading messages...</div>';
-  document.getElementById('chatModal').style.display = 'flex';
+  document.getElementById('conversationList').style.display = 'none';
+  document.getElementById('chatView').style.display = 'flex';
+  
   const currentUser = window.getCurrentUser();
   if (currentUser) {
     const convRef = window.db.collection('conversations').doc(convId);
     const convDoc = await convRef.get();
     if (!convDoc.exists) {
-      // Create the conversation document with participants
       await convRef.set({
         participants: [currentUser.uid, otherUserId],
         lastMessage: '',
@@ -136,7 +143,6 @@ async function openChatConversation(convId, otherUserId, otherUserName, otherUse
         unreadCounts: {}
       });
     }
-    // Now update unreadCounts (mark as read)
     await convRef.update({
       [`unreadCounts.${currentUser.uid}`]: firebase.firestore.FieldValue.delete()
     });
@@ -184,30 +190,41 @@ async function sendMessage(text) {
     text: text.trim(),
     timestamp: firebase.firestore.FieldValue.serverTimestamp()
   };
-  await window.db.runTransaction(async (transaction) => {
-    const convDoc = await transaction.get(convRef);
-    if (!convDoc.exists) {
-      // Create conversation document inside transaction
-      transaction.set(convRef, {
-        participants: [currentUser.uid, currentActiveChat.otherUserId],
-        lastMessage: text,
-        lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
-        unreadCounts: { [currentActiveChat.otherUserId]: firebase.firestore.FieldValue.increment(1) }
-      });
-    } else {
-      transaction.update(convRef, {
-        lastMessage: text,
-        lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
-        [`unreadCounts.${currentActiveChat.otherUserId}`]: firebase.firestore.FieldValue.increment(1)
-      });
-    }
-    const messagesRef = convRef.collection('messages');
-    transaction.set(messagesRef.doc(), newMessage);
-  });
-  document.getElementById('chatInputField').value = '';
+  try {
+    await window.db.runTransaction(async (transaction) => {
+      const convDoc = await transaction.get(convRef);
+      if (!convDoc.exists) {
+        transaction.set(convRef, {
+          participants: [currentUser.uid, currentActiveChat.otherUserId],
+          lastMessage: text,
+          lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+          unreadCounts: { [currentActiveChat.otherUserId]: firebase.firestore.FieldValue.increment(1) }
+        });
+      } else {
+        transaction.update(convRef, {
+          lastMessage: text,
+          lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+          [`unreadCounts.${currentActiveChat.otherUserId}`]: firebase.firestore.FieldValue.increment(1)
+        });
+      }
+      const messagesRef = convRef.collection('messages');
+      transaction.set(messagesRef.doc(), newMessage);
+    });
+    // Clear and reset textarea
+    const textarea = document.getElementById('chatInputField');
+    textarea.value = '';
+    textarea.style.height = 'auto';
+    window.showToast('Message sent', 'success');
+  } catch (err) {
+    console.error("Send message error:", err);
+    window.showToast('Failed to send message: ' + err.message, 'error');
+  }
 }
 
 function openChatModal() {
+  // Reset to conversation list view
+  document.getElementById('conversationList').style.display = 'block';
+  document.getElementById('chatView').style.display = 'none';
   loadConversations();
   document.getElementById('chatModal').style.display = 'flex';
 }
@@ -223,16 +240,46 @@ function closeChatModal() {
 
 function initMessaging() {
   const sendBtn = document.getElementById('chatSendBtn');
-  if (sendBtn) {
+  const textarea = document.getElementById('chatInputField');
+  
+  if (sendBtn && textarea) {
     sendBtn.addEventListener('click', () => {
-      const input = document.getElementById('chatInputField');
-      const text = input.value.trim();
+      const text = textarea.value.trim();
       if (text) {
         sendMessage(text);
-        input.value = '';
+      }
+    });
+    
+    // Auto-resize textarea as user types
+    textarea.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+    
+    // Send on Ctrl+Enter
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        sendBtn.click();
       }
     });
   }
+  
+  // Back button handler
+  const backBtn = document.getElementById('backToConvBtn');
+  if (backBtn) {
+    backBtn.addEventListener('click', () => {
+      document.getElementById('conversationList').style.display = 'block';
+      document.getElementById('chatView').style.display = 'none';
+      if (messagesUnsubscribe) {
+        messagesUnsubscribe();
+        messagesUnsubscribe = null;
+      }
+      currentActiveChat = null;
+      loadConversations();
+    });
+  }
+  
   const closeBtns = document.querySelectorAll('#chatModal .close, #chatModal .close-modal');
   closeBtns.forEach(btn => btn.addEventListener('click', closeChatModal));
   window.addEventListener('click', (e) => {
