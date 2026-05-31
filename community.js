@@ -1,8 +1,15 @@
-// community.js – Followed posts first, then others + suggestions sidebar
+// community.js – Optimized with dynamic feed updates, five reactions, notifications, and user avatar in comment input
 
 let currentFeedPosts = [];
 let currentUserObj = null;
-let allUsersCache = []; // cache for suggestions
+let allUsersCache = [];
+let communityDataLoaded = false;
+
+// Reliable default avatar (SVG data URI – no external request)
+const DEFAULT_AVATAR = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="%23cbd5e1" stroke="%2394a3b8" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"%3E%3C/path%3E%3Ccircle cx="12" cy="7" r="4"%3E%3C/circle%3E%3C/svg%3E';
+const DEFAULT_AVATAR_32 = DEFAULT_AVATAR.replace('width="40"', 'width="32"').replace('height="40"', 'height="32"');
+const DEFAULT_AVATAR_28 = DEFAULT_AVATAR.replace('width="40"', 'width="28"').replace('height="40"', 'height="28"');
+const DEFAULT_AVATAR_80 = DEFAULT_AVATAR.replace('width="40"', 'width="80"').replace('height="40"', 'height="80"');
 
 function escapeHtml(str) {
   return str.replace(/[&<>]/g, function(m) {
@@ -18,7 +25,6 @@ async function getCurrentUserData(uid) {
   return doc.exists ? doc.data() : null;
 }
 
-// ---------- Helper: relative time (Facebook style) ----------
 function timeAgo(timestamp) {
   if (!timestamp) return 'Just now';
   let date;
@@ -43,7 +49,7 @@ function timeAgo(timestamp) {
   return `${years} year${years > 1 ? 's' : ''} ago`;
 }
 
-// ---------- Follow/Unfollow ----------
+// ---------- Follow/Unfollow with notification ----------
 async function isFollowing(followerId, followingId) {
   if (!followerId || !followingId) return false;
   try {
@@ -61,6 +67,10 @@ async function followUser(followerId, followingId) {
     followerId, followingId,
     timestamp: firebase.firestore.FieldValue.serverTimestamp()
   });
+  // Send notification
+  if (window.createNotification && followerId !== followingId) {
+    window.createNotification(followingId, 'follow', followerId);
+  }
   return true;
 }
 
@@ -74,7 +84,7 @@ async function getFollowingList(uid) {
   return snapshot.docs.map(doc => doc.data().followingId);
 }
 
-// ---------- Create Post ----------
+// ---------- Create Post (with immediate DOM update) ----------
 async function createPost(text) {
   const user = window.getCurrentUser();
   if (!user) {
@@ -82,27 +92,38 @@ async function createPost(text) {
     return false;
   }
   const userData = await getCurrentUserData(user.uid);
-  await window.db.collection('posts').add({
+  const newPostRef = await window.db.collection('posts').add({
     userId: user.uid,
     username: userData.username || user.email,
-    userPhoto: userData.photoURL || '',
+    userPhoto: userData.photoURL || DEFAULT_AVATAR,
     text: text.trim(),
     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-    loveCount: 0, hahaCount: 0, wowCount: 0, dislikeCount: 0
+    loveCount: 0, hahaCount: 0, wowCount: 0, sadCount: 0, dislikeCount: 0
   });
   window.showToast('Post created!', 'success');
-  await loadCommunityFeed();
+  
+  const newPostSnap = await newPostRef.get();
+  const newPostData = newPostSnap.data();
+  const newPost = {
+    id: newPostSnap.id,
+    ...newPostData,
+    userReaction: null,
+    comments: []
+  };
+  currentFeedPosts.unshift(newPost);
+  renderFeed(currentFeedPosts);
   return true;
 }
 
-// ---------- Reactions (optimistic) – unchanged ----------
+// ---------- Reactions (optimistic) with five types and notification ----------
 async function setReaction(postId, userId, reactionType) {
   const reactionRef = window.db.collection('posts').doc(postId).collection('reactions').doc(userId);
   const postRef = window.db.collection('posts').doc(postId);
   const postIndex = currentFeedPosts.findIndex(p => p.id === postId);
+  let oldReaction = null;
   if (postIndex !== -1) {
     const post = currentFeedPosts[postIndex];
-    const oldReaction = post.userReaction;
+    oldReaction = post.userReaction;
     if (oldReaction === reactionType) {
       post[`${reactionType}Count`] = (post[`${reactionType}Count`] || 1) - 1;
       post.userReaction = null;
@@ -119,16 +140,21 @@ async function setReaction(postId, userId, reactionType) {
       const reactionDoc = await transaction.get(reactionRef);
       const postDoc = await transaction.get(postRef);
       if (!postDoc.exists) return;
-      let oldReaction = reactionDoc.exists ? reactionDoc.data().type : null;
-      if (oldReaction === reactionType) {
+      let old = reactionDoc.exists ? reactionDoc.data().type : null;
+      if (old === reactionType) {
         transaction.delete(reactionRef);
         transaction.update(postRef, { [`${reactionType}Count`]: firebase.firestore.FieldValue.increment(-1) });
       } else {
-        if (oldReaction) transaction.update(postRef, { [`${oldReaction}Count`]: firebase.firestore.FieldValue.increment(-1) });
+        if (old) transaction.update(postRef, { [`${old}Count`]: firebase.firestore.FieldValue.increment(-1) });
         transaction.set(reactionRef, { type: reactionType, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
         transaction.update(postRef, { [`${reactionType}Count`]: firebase.firestore.FieldValue.increment(1) });
       }
     });
+    // Send notification if not self-reaction
+    const postDoc = await postRef.get();
+    if (userId !== postDoc.data().userId && window.createNotification) {
+      window.createNotification(postDoc.data().userId, reactionType, userId, postId);
+    }
   } catch (err) {
     console.error(err);
     window.showToast('Reaction failed', 'error');
@@ -141,8 +167,8 @@ function updatePostDOM(postId, updatedPost) {
   if (!postElement) return;
   const reactionsDiv = postElement.querySelector('.post-reactions');
   if (reactionsDiv) {
-    const reactionTypes = ['love', 'haha', 'wow', 'dislike'];
-    const reactionEmojis = { love: '❤️', haha: '😆', wow: '😲', dislike: '👎' };
+    const reactionTypes = ['love', 'haha', 'wow', 'sad', 'dislike'];
+    const reactionEmojis = { love: '❤️', haha: '😆', wow: '😲', sad: '😓', dislike: '👎' };
     reactionsDiv.innerHTML = reactionTypes.map(type => `
       <button class="reaction-btn ${updatedPost.userReaction === type ? 'active' : ''}" data-type="${type}" data-post-id="${postId}">
         ${reactionEmojis[type]} <span class="reaction-count">${updatedPost[`${type}Count`] || 0}</span>
@@ -160,7 +186,7 @@ function updatePostDOM(postId, updatedPost) {
   }
 }
 
-// ---------- Comments with Replies (Facebook style) – unchanged ----------
+// ---------- Comments with notification ----------
 async function addComment(postId, text) {
   const user = window.getCurrentUser();
   if (!user) {
@@ -171,7 +197,7 @@ async function addComment(postId, text) {
   const newComment = {
     userId: user.uid,
     username: userData.username || user.email,
-    userPhoto: userData.photoURL || '',
+    userPhoto: userData.photoURL || DEFAULT_AVATAR_32,
     text: text.trim(),
     timestamp: firebase.firestore.FieldValue.serverTimestamp()
   };
@@ -183,6 +209,11 @@ async function addComment(postId, text) {
   }
   try {
     await window.db.collection('posts').doc(postId).collection('comments').add(newComment);
+    // Send notification
+    const postDoc = await window.db.collection('posts').doc(postId).get();
+    if (user.uid !== postDoc.data().userId && window.createNotification) {
+      window.createNotification(postDoc.data().userId, 'comment', user.uid, postId, text);
+    }
     return true;
   } catch (err) {
     console.error(err);
@@ -202,7 +233,7 @@ async function addReply(postId, commentId, text) {
   const newReply = {
     userId: user.uid,
     username: userData.username || user.email,
-    userPhoto: userData.photoURL || '',
+    userPhoto: userData.photoURL || DEFAULT_AVATAR_28,
     text: text.trim(),
     timestamp: firebase.firestore.FieldValue.serverTimestamp()
   };
@@ -264,7 +295,7 @@ function renderCommentsHTML(comments, postId) {
     html += `
       <div class="comment" data-comment-id="${comment.id}">
         <div class="comment-avatar">
-          <img src="${comment.userPhoto || 'https://via.placeholder.com/32'}" class="comment-avatar-img" data-user-id="${comment.userId}">
+          <img src="${comment.userPhoto || DEFAULT_AVATAR_32}" class="comment-avatar-img" data-user-id="${comment.userId}" onerror="this.src='${DEFAULT_AVATAR_32}'">
         </div>
         <div class="comment-body">
           <div class="comment-header">
@@ -296,7 +327,7 @@ function renderRepliesHTML(replies) {
     html += `
       <div class="reply">
         <div class="reply-avatar">
-          <img src="${reply.userPhoto || 'https://via.placeholder.com/28'}" class="reply-avatar-img" data-user-id="${reply.userId}">
+          <img src="${reply.userPhoto || DEFAULT_AVATAR_28}" class="reply-avatar-img" data-user-id="${reply.userId}" onerror="this.src='${DEFAULT_AVATAR_28}'">
         </div>
         <div class="reply-body">
           <div class="reply-header">
@@ -338,7 +369,7 @@ function attachCommentEventListeners(postId) {
   });
 }
 
-// ---------- Suggestions: fetch all users except current ----------
+// ---------- Suggestions ----------
 async function loadSuggestions() {
   const container = document.getElementById('suggestionsContainer');
   if (!container) return;
@@ -377,7 +408,7 @@ function renderSuggestions(users) {
   for (const user of users) {
     html += `
       <div class="suggestion-item" data-user-id="${user.uid}">
-        <img src="${user.photoURL || 'https://via.placeholder.com/40'}" class="suggestion-avatar" data-user-id="${user.uid}">
+        <img src="${user.photoURL || DEFAULT_AVATAR}" class="suggestion-avatar" data-user-id="${user.uid}" onerror="this.src='${DEFAULT_AVATAR}'">
         <div class="suggestion-info">
           <div class="suggestion-username" data-user-id="${user.uid}">${escapeHtml(user.username || 'User')}</div>
           <button class="follow-suggestion-btn ${user.isFollowed ? 'following' : ''}" data-user-id="${user.uid}">
@@ -390,7 +421,6 @@ function renderSuggestions(users) {
   html += '</div>';
   container.innerHTML = html;
   
-  // Attach event listeners
   document.querySelectorAll('.suggestion-avatar, .suggestion-username').forEach(el => {
     el.addEventListener('click', (e) => {
       const userId = el.dataset.userId;
@@ -408,22 +438,40 @@ function renderSuggestions(users) {
         btn.classList.remove('following');
         btn.textContent = 'Follow';
         window.showToast('Unfollowed', 'info');
+        currentFeedPosts = currentFeedPosts.filter(post => post.userId !== userId);
+        renderFeed(currentFeedPosts);
       } else {
         await followUser(currentUser.uid, userId);
         btn.classList.add('following');
         btn.textContent = 'Following';
         window.showToast('Followed', 'success');
+        const newPostsSnap = await window.db.collection('posts')
+          .where('userId', '==', userId)
+          .orderBy('timestamp', 'desc')
+          .limit(5)
+          .get();
+        const newPosts = [];
+        for (const doc of newPostsSnap.docs) {
+          const postData = doc.data();
+          const userReaction = await getUserReactionForPost(doc.id, currentUser.uid);
+          const comments = await getComments(doc.id);
+          newPosts.push({ id: doc.id, ...postData, userReaction, comments });
+        }
+        currentFeedPosts = [...currentFeedPosts, ...newPosts];
+        currentFeedPosts.sort((a, b) => {
+          const timeA = a.timestamp ? a.timestamp.toDate() : new Date(0);
+          const timeB = b.timestamp ? b.timestamp.toDate() : new Date(0);
+          return timeB - timeA;
+        });
+        renderFeed(currentFeedPosts);
       }
-      // Update isFollowed status in cache
       const userIndex = allUsersCache.findIndex(u => u.uid === userId);
       if (userIndex !== -1) allUsersCache[userIndex].isFollowed = !allUsersCache[userIndex].isFollowed;
-      // Refresh feed (because now the user follows someone)
-      await loadCommunityFeed();
     });
   });
 }
 
-// ---------- Load Feed: followed posts first, then others ----------
+// ---------- Load Feed (initial) ----------
 async function loadCommunityFeed() {
   const feedContainer = document.getElementById('communityFeedContainer');
   if (!feedContainer) return;
@@ -438,7 +486,6 @@ async function loadCommunityFeed() {
     const followedIds = following;
     const allPosts = [];
     
-    // 1. Get posts from followed users (most recent)
     if (followedIds.length > 0) {
       let followedPostsSnap;
       try {
@@ -447,7 +494,6 @@ async function loadCommunityFeed() {
           .orderBy('timestamp', 'desc')
           .get();
       } catch (err) {
-        // Fallback if index missing
         const allPostsTemp = await window.db.collection('posts').orderBy('timestamp', 'desc').get();
         followedPostsSnap = { docs: allPostsTemp.docs.filter(doc => followedIds.includes(doc.data().userId)) };
       }
@@ -460,8 +506,6 @@ async function loadCommunityFeed() {
       }
     }
     
-    // 2. Get posts from non-followed users (latest, limit to 20)
-    const otherIds = [currentUser.uid, ...followedIds]; // exclude these
     let otherPostsSnap;
     try {
       otherPostsSnap = await window.db.collection('posts')
@@ -475,7 +519,6 @@ async function loadCommunityFeed() {
       const postData = doc.data();
       const postId = doc.id;
       if (!followedIds.includes(postData.userId) && postData.userId !== currentUser.uid) {
-        // Avoid duplicates (in case a followed user appears in the second query)
         if (!allPosts.some(p => p.id === postId)) {
           const userReaction = await getUserReactionForPost(postId, currentUser.uid);
           const comments = await getComments(postId);
@@ -484,7 +527,6 @@ async function loadCommunityFeed() {
       }
     }
     
-    // Sort all posts by timestamp descending (newest first)
     allPosts.sort((a, b) => {
       const timeA = a.timestamp ? a.timestamp.toDate() : new Date(0);
       const timeB = b.timestamp ? b.timestamp.toDate() : new Date(0);
@@ -515,14 +557,15 @@ function renderFeed(posts) {
     return;
   }
   let html = '';
+  const currentUserPhoto = window.getCurrentUser()?.photoURL || DEFAULT_AVATAR_32;
   for (const post of posts) {
     const timeAgoStr = timeAgo(post.timestamp);
-    const reactionTypes = ['love', 'haha', 'wow', 'dislike'];
-    const reactionEmojis = { love: '❤️', haha: '😆', wow: '😲', dislike: '👎' };
+    const reactionTypes = ['love', 'haha', 'wow', 'sad', 'dislike'];
+    const reactionEmojis = { love: '❤️', haha: '😆', wow: '😲', sad: '😓', dislike: '👎' };
     html += `
       <div class="community-post" data-post-id="${post.id}">
         <div class="post-header">
-          <img src="${post.userPhoto || 'https://via.placeholder.com/40'}" class="post-avatar" data-user-id="${post.userId}">
+          <img src="${post.userPhoto || DEFAULT_AVATAR}" class="post-avatar" data-user-id="${post.userId}" onerror="this.src='${DEFAULT_AVATAR}'">
           <div class="post-user-info">
             <span class="post-username" data-user-id="${post.userId}">${escapeHtml(post.username)}</span>
             <span class="post-time">${timeAgoStr}</span>
@@ -541,7 +584,7 @@ function renderFeed(posts) {
             ${renderCommentsHTML(post.comments, post.id)}
           </div>
           <div class="add-comment">
-            <img src="${window.getCurrentUser()?.photoURL || 'https://via.placeholder.com/32'}" class="add-comment-avatar">
+            <img src="${currentUserPhoto}" class="add-comment-avatar" onerror="this.src='${DEFAULT_AVATAR_32}'">
             <input type="text" class="comment-input" placeholder="Write a comment..." data-post-id="${post.id}">
             <button class="comment-submit" data-post-id="${post.id}">Post</button>
           </div>
@@ -584,7 +627,7 @@ function renderFeed(posts) {
   }
 }
 
-// ---------- User Profile Modal (unchanged) ----------
+// ---------- User Profile Modal ----------
 async function showUserProfileModal(userId) {
   const currentUser = window.getCurrentUser();
   const userDoc = await window.db.collection('users').doc(userId).get();
@@ -602,7 +645,7 @@ async function showUserProfileModal(userId) {
   const modalContent = document.getElementById('userProfileModalContent');
   modalContent.innerHTML = `
     <div class="profile-modal-header">
-      <img src="${userData.photoURL || 'https://via.placeholder.com/80'}" class="profile-modal-avatar">
+      <img src="${userData.photoURL || DEFAULT_AVATAR_80}" class="profile-modal-avatar" onerror="this.src='${DEFAULT_AVATAR_80}'">
       <h3>${escapeHtml(userData.username || 'User')}</h3>
       <p>${escapeHtml(userData.bio || 'No bio yet')}</p>
       <div class="profile-modal-stats">
@@ -625,19 +668,38 @@ async function showUserProfileModal(userId) {
         followBtn.classList.remove('following');
         followBtn.textContent = 'Follow';
         window.showToast(`Unfollowed ${userData.username}`, 'info');
+        currentFeedPosts = currentFeedPosts.filter(post => post.userId !== userId);
+        renderFeed(currentFeedPosts);
       } else {
         await followUser(currentUser.uid, userId);
         followBtn.classList.add('following');
         followBtn.textContent = 'Following';
         window.showToast(`Following ${userData.username}`, 'success');
+        const newPostsSnap = await window.db.collection('posts')
+          .where('userId', '==', userId)
+          .orderBy('timestamp', 'desc')
+          .limit(5)
+          .get();
+        const newPosts = [];
+        for (const doc of newPostsSnap.docs) {
+          const postData = doc.data();
+          const userReaction = await getUserReactionForPost(doc.id, currentUser.uid);
+          const comments = await getComments(doc.id);
+          newPosts.push({ id: doc.id, ...postData, userReaction, comments });
+        }
+        currentFeedPosts = [...currentFeedPosts, ...newPosts];
+        currentFeedPosts.sort((a, b) => {
+          const timeA = a.timestamp ? a.timestamp.toDate() : new Date(0);
+          const timeB = b.timestamp ? b.timestamp.toDate() : new Date(0);
+          return timeB - timeA;
+        });
+        renderFeed(currentFeedPosts);
       }
       const newFollowers = await window.db.collection('follows').where('followingId', '==', userId).get();
       const newCount = newFollowers.size;
       const statsDiv = modalContent.querySelector('.profile-modal-stats');
       statsDiv.innerHTML = `<span><strong>${newCount}</strong> Followers</span><span><strong>${followingCount}</strong> Following</span>`;
-      // Refresh suggestions and feed
       await loadSuggestions();
-      await loadCommunityFeed();
     });
   }
 }
@@ -669,21 +731,36 @@ function renderCreatePostForm() {
   });
 }
 
-// ---------- Initialize Community ----------
+// ---------- Reset community data ----------
+window.resetCommunityData = function() {
+  communityDataLoaded = false;
+  currentFeedPosts = [];
+  allUsersCache = [];
+  const feedContainer = document.getElementById('communityFeedContainer');
+  if (feedContainer) feedContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading feed...</div>';
+  const suggestionsContainer = document.getElementById('suggestionsContainer');
+  if (suggestionsContainer) suggestionsContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading suggestions...</div>';
+};
+
+// ---------- Main entry ----------
+window.loadCommunitySection = async function(forceRefresh = false) {
+  if (!forceRefresh && communityDataLoaded) {
+    console.log("Community data already loaded, skipping reload");
+    return;
+  }
+  console.log("Loading community data...");
+  renderCreatePostForm();
+  await Promise.all([loadCommunityFeed(), loadSuggestions()]);
+  communityDataLoaded = true;
+};
+
+// Initialize community
 window.initCommunity = function() {
   renderCreatePostForm();
-  loadCommunityFeed();
-  loadSuggestions();
   const modal = document.getElementById('userProfileModal');
   const closeBtn = modal.querySelector('.close-profile-modal');
   if (closeBtn) closeBtn.addEventListener('click', () => modal.style.display = 'none');
   window.addEventListener('click', (e) => {
     if (e.target === modal) modal.style.display = 'none';
   });
-};
-
-window.loadCommunitySection = function() {
-  renderCreatePostForm();
-  loadCommunityFeed();
-  loadSuggestions();
 };

@@ -16,6 +16,8 @@
   <script src="profile.js"></script>
   <script src="chatbot.js"></script>
   <script src="community.js"></script>
+  <script src="messaging.js"></script>
+  <script src="notifications.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
@@ -27,35 +29,19 @@
         <div class="logo">
           <i class="fas fa-palette"></i> ChromaShare
         </div>
-
         <button class="mobile-menu-btn" id="mobileMenuBtn">
           <i class="fas fa-ellipsis-v"></i>
         </button>
       </div>
-
       <!-- Bottom Row -->
       <nav class="nav-links">
-        <button class="nav-btn" data-section="home">
-          <i class="fas fa-home"></i> Home
-        </button>
-
-        <button class="nav-btn" data-section="community">
-          <i class="fas fa-users"></i> Community
-        </button>
-
-        <button class="nav-btn" data-section="chatbot">
-          <i class="fas fa-comment-dots"></i> ColorBot
-        </button>
-
-        <button class="nav-btn" data-section="profile" id="profileNavBtn" style="display: none;">
-          <i class="fas fa-user-circle"></i> Profile
-        </button>
-
-        <button class="nav-btn" id="authBtn">
-          <i class="fas fa-sign-in-alt"></i> Login
-        </button>
+        <button class="nav-btn" data-section="home"><i class="fas fa-home"></i> Home</button>
+        <button class="nav-btn" data-section="community"><i class="fas fa-users"></i> Community</button>
+        <button class="nav-btn" data-section="chatbot"><i class="fas fa-comment-dots"></i> ColorBot</button>
+        <button class="nav-btn" data-section="profile" id="profileNavBtn" style="display: none;"><i class="fas fa-user-circle"></i> Profile</button>
+        <button class="nav-btn" id="authBtn"><i class="fas fa-sign-in-alt"></i> Login</button>
       </nav>
-</header>
+    </header>
 
     <main id="mainContent">
       <!-- Auth Modal -->
@@ -81,18 +67,18 @@
         </div>
       </div>
 
-      <!-- Palette Name Modal (for posting palettes) -->
+      <!-- Palette Name Modal -->
       <div id="paletteNameModal" class="modal">
         <div class="modal-content" style="max-width: 350px;">
           <span class="close-palette-modal">&times;</span>
           <h3 style="margin-bottom: 1rem;">🎨 Name Your Palette</h3>
-          <input type="text" id="paletteNameInput" placeholder="e.g., Sunset Vibes" style="width: 100%; padding: 10px; border-radius: 2rem; border: 1px solid #cbd5e1; margin-bottom: 1rem;">
-          <button id="confirmPostBtn" style="background: #10b981; width: 100%;">Post to Community</button>
-          <button id="cancelPostBtn" style="background: #94a3b8; width: 100%; margin-top: 8px;">Cancel</button>
+          <input type="text" id="paletteNameInput" placeholder="e.g., Sunset Vibes">
+          <button id="confirmPostBtn" style="background: #10b981;">Post to Community</button>
+          <button id="cancelPostBtn" style="background: #94a3b8; margin-top: 8px;">Cancel</button>
         </div>
       </div>
 
-      <!-- User Profile Modal (for Community) -->
+      <!-- User Profile Modal (Community) -->
       <div id="userProfileModal" class="modal">
         <div class="modal-content" style="max-width: 450px;">
           <span class="close close-profile-modal">&times;</span>
@@ -100,22 +86,20 @@
         </div>
       </div>
 
-      <!-- Edit Post Modal (for editing user's own posts) -->
+      <!-- Edit Post Modal -->
       <div id="editPostModal" class="modal">
         <div class="modal-content" style="max-width: 500px;">
           <span class="close close-edit-modal">&times;</span>
           <h3>Edit Your Post</h3>
-          <textarea id="editPostText" rows="4" style="width:100%; margin: 1rem 0; padding: 0.7rem; border-radius: 1rem; border: 1px solid #cbd5e1;"></textarea>
-          <button id="savePostEditBtn" style="background:#10b981; margin-right: 0.5rem;">Save Changes</button>
+          <textarea id="editPostText" rows="4"></textarea>
+          <button id="savePostEditBtn" style="background:#10b981;">Save Changes</button>
           <button id="cancelPostEditBtn" style="background:#94a3b8;">Cancel</button>
         </div>
       </div>
 
       <!-- Home Section -->
       <section id="homeSection" class="section active">
-        <div class="section-header">
-          <h2><i class="fas fa-globe"></i> Community Palettes</h2>
-        </div>
+        <div class="section-header"><h2><i class="fas fa-globe"></i> Community Palettes</h2></div>
         <div id="publicPalettesGrid" class="palettes-grid">Loading inspiring colors...</div>
       </section>
 
@@ -129,18 +113,16 @@
             </div>
           </div>
           <div class="chat-input-area">
-            <textarea id="chatInput" rows="1" placeholder="#FF5733 or 'blue' or 'what matches red?' (you can paste multiple lines)" style="resize: none; overflow-y: hidden;"></textarea>
+            <textarea id="chatInput" rows="1" placeholder="#FF5733 or 'blue' or 'what matches red?' (you can paste multiple lines)"></textarea>
             <button id="sendColorBtn" class="send-btn"><i class="fas fa-paper-plane"></i> Send</button>
             <button id="randomColorBtn" class="random-btn"><i class="fas fa-dice"></i> Random</button>
           </div>
         </div>
       </section>
 
-      <!-- Community Section (two‑column layout) -->
+      <!-- Community Section -->
       <section id="communitySection" class="section">
-        <div class="section-header">
-          <h2><i class="fas fa-newspaper"></i> Community Feed</h2>
-        </div>
+        <div class="section-header"><h2><i class="fas fa-newspaper"></i> Community Feed</h2></div>
         <div class="community-layout">
           <div class="community-feed">
             <div id="createPostContainer"></div>
@@ -179,8 +161,6 @@
             <button id="cancelEditBtn">Cancel</button>
           </div>
           <button id="logoutBtn" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</button>
-
-          <!-- My Posts Section (for logged-in user) -->
           <div class="my-posts-section">
             <h3><i class="fas fa-history"></i> My Posts</h3>
             <div id="myPostsContainer"></div>
@@ -189,6 +169,44 @@
       </section>
     </main>
     <footer>✨ Share your palette, inspire the world ✨</footer>
+  </div>
+
+  <!-- Floating Buttons -->
+  <div class="floating-buttons">
+    <button class="floating-btn" id="chatFloatingBtn"><i class="fas fa-comment-dots"></i></button>
+    <button class="floating-btn" id="notifFloatingBtn">
+      <i class="fas fa-bell"></i>
+      <span id="notificationBadge" class="notification-badge" style="display: none;">0</span>
+    </button>
+  </div>
+
+  <!-- Chat Modal -->
+  <div id="chatModal" class="modal">
+    <div class="modal-content modal-chat">
+      <span class="close">&times;</span>
+      <h3>Messages</h3>
+      <div id="conversationList" class="conversation-list"></div>
+      <div id="chatView" style="display: none;">
+        <div class="chat-header">
+          <button id="backToConvBtn"><i class="fas fa-arrow-left"></i></button>
+          <span id="chatModalTitle"></span>
+        </div>
+        <div id="chatMessagesContainer" class="chat-messages-container"></div>
+        <div class="chat-input-container">
+          <input type="text" id="chatInputField" placeholder="Type a message...">
+          <button id="chatSendBtn">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Modal -->
+  <div id="notificationModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h3>Notifications</h3>
+      <div id="notificationList" class="notification-list"></div>
+    </div>
   </div>
 </body>
 </html>

@@ -1,4 +1,4 @@
-// script.js - Main entry (global version) with Community section and mobile three-dot menu
+// script.js - Main entry with Community caching, mobile menu, messaging & notifications
 
 const firebaseConfig = {
   apiKey: "AIzaSyDsp1FGBBDL8bFEVBY1OeaN_OSTX8fG0Fw",
@@ -10,16 +10,13 @@ const firebaseConfig = {
   measurementId: "G-65R3GNMT69"
 };
 
-// Initialize Firebase (compat)
 firebase.initializeApp(firebaseConfig);
 window.auth = firebase.auth();
 window.db = firebase.firestore();
 window.storage = firebase.storage();
 
 let currentUser = null;
-let userMenuDropdown = null; // For logged-in user menu
-
-// DOM element references
+let userMenuDropdown = null;
 let homeSection, chatbotSection, communitySection, profileSection, navBtns, authBtn, profileNavBtn;
 
 function showSection(sectionId) {
@@ -41,7 +38,6 @@ function showSection(sectionId) {
 window.showSection = showSection;
 window.getCurrentUser = () => currentUser;
 
-// Show toast notification
 window.showToast = function(message, type = 'info') {
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
@@ -50,18 +46,12 @@ window.showToast = function(message, type = 'info') {
   setTimeout(() => toast.remove(), 3000);
 };
 
-// Modal control functions (for login/signup)
 window.showModal = function() {
-  console.log('showModal called');
   const modal = document.getElementById('authModal');
   if (modal) {
     modal.style.display = 'flex';
-    const loginForm = document.getElementById('loginForm');
-    const signupForm = document.getElementById('signupForm');
-    if (loginForm) loginForm.style.display = 'block';
-    if (signupForm) signupForm.style.display = 'none';
-  } else {
-    console.error('Modal element not found');
+    document.getElementById('loginForm').style.display = 'block';
+    document.getElementById('signupForm').style.display = 'none';
   }
 };
 
@@ -70,7 +60,6 @@ window.closeModal = function() {
   if (modal) modal.style.display = 'none';
 };
 
-// Create user dropdown menu (same as before)
 function createUserMenu() {
   if (userMenuDropdown) userMenuDropdown.remove();
   const menu = document.createElement('div');
@@ -80,25 +69,20 @@ function createUserMenu() {
     <div class="user-dropdown-item" id="switchAccountItem"><i class="fas fa-exchange-alt"></i> Switch Account</div>
   `;
   document.body.appendChild(menu);
-  const logoutItem = document.getElementById('logoutItem');
-  const switchItem = document.getElementById('switchAccountItem');
-  logoutItem.addEventListener('click', () => {
+  document.getElementById('logoutItem').addEventListener('click', () => {
     window.logoutUser();
     menu.remove();
     userMenuDropdown = null;
   });
-  switchItem.addEventListener('click', () => {
+  document.getElementById('switchAccountItem').addEventListener('click', () => {
     window.logoutUser();
-    setTimeout(() => {
-      window.showModal();
-    }, 500);
+    setTimeout(() => window.showModal(), 500);
     menu.remove();
     userMenuDropdown = null;
   });
   return menu;
 }
 
-// Position dropdown relative to auth button (left-aligned)
 function positionUserMenu(btn) {
   if (userMenuDropdown) userMenuDropdown.remove();
   userMenuDropdown = createUserMenu();
@@ -112,18 +96,14 @@ function positionUserMenu(btn) {
       document.removeEventListener('click', closeHandler);
     }
   };
-  setTimeout(() => {
-    document.addEventListener('click', closeHandler);
-  }, 100);
+  setTimeout(() => document.addEventListener('click', closeHandler), 100);
 }
 
-// NEW: Position dropdown aligned to the RIGHT edge of the button (for mobile three-dot)
 function positionUserMenuRight(btn) {
   if (userMenuDropdown) userMenuDropdown.remove();
   userMenuDropdown = createUserMenu();
   const rect = btn.getBoundingClientRect();
   userMenuDropdown.style.top = rect.bottom + window.scrollY + 5 + 'px';
-  // Align right edge: button's right edge - dropdown width
   const dropdownWidth = userMenuDropdown.offsetWidth;
   userMenuDropdown.style.left = (rect.right - dropdownWidth) + window.scrollX + 'px';
   userMenuDropdown.style.right = 'auto';
@@ -134,14 +114,10 @@ function positionUserMenuRight(btn) {
       document.removeEventListener('click', closeHandler);
     }
   };
-  setTimeout(() => {
-    document.addEventListener('click', closeHandler);
-  }, 100);
+  setTimeout(() => document.addEventListener('click', closeHandler), 100);
 }
 
-// Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('DOM loaded');
   homeSection = document.getElementById('homeSection');
   chatbotSection = document.getElementById('chatbotSection');
   communitySection = document.getElementById('communitySection');
@@ -151,8 +127,8 @@ document.addEventListener('DOMContentLoaded', () => {
   profileNavBtn = document.getElementById('profileNavBtn');
   const closeModalBtn = document.querySelector('.close');
 
-  // Auth state listener
   firebase.auth().onAuthStateChanged(async (user) => {
+    if (window.resetCommunityData) window.resetCommunityData();
     currentUser = user;
     if (user) {
       const userDoc = await window.db.collection('users').doc(user.uid).get();
@@ -168,84 +144,68 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       authBtn.onclick = (e) => {
         e.preventDefault();
-        e.stopPropagation();
         positionUserMenu(authBtn);
       };
+      // Refresh messaging & notifications after login
+      if (window.loadConversations) window.loadConversations();
+      if (window.loadNotifications) window.loadNotifications();
     } else {
       if (authBtn) {
         authBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
         authBtn.onclick = (e) => {
           e.preventDefault();
-          e.stopPropagation();
           window.showModal();
         };
       }
       if (profileNavBtn) profileNavBtn.style.display = 'none';
-      const usernameEl = document.getElementById('profileUsername');
-      if (usernameEl) usernameEl.innerText = 'Guest';
-      const bioEl = document.getElementById('profileBio');
-      if (bioEl) bioEl.innerText = 'Please login to edit profile';
+      document.getElementById('profileUsername').innerText = 'Guest';
+      document.getElementById('profileBio').innerText = 'Please login to edit profile';
     }
-    // Load initial section content if active
-    if (homeSection && homeSection.classList.contains('active') && window.loadPublicPalettes) {
+    if (homeSection?.classList.contains('active') && window.loadPublicPalettes) {
       window.loadPublicPalettes(currentUser);
     }
-    if (communitySection && communitySection.classList.contains('active') && window.loadCommunitySection) {
-      window.loadCommunitySection();
+    if (communitySection?.classList.contains('active') && window.loadCommunitySection) {
+      window.loadCommunitySection(true);
     }
   });
 
-  // Navigation
   navBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       const section = btn.dataset.section;
       showSection(section);
-      if (section === 'home' && window.loadPublicPalettes) {
-        window.loadPublicPalettes(currentUser);
-      }
-      if (section === 'profile' && currentUser && window.loadProfilePage) {
-        window.loadProfilePage(currentUser.uid);
-      }
-      if (section === 'community' && window.loadCommunitySection) {
-        window.loadCommunitySection();
-      }
+      if (section === 'home' && window.loadPublicPalettes) window.loadPublicPalettes(currentUser);
+      if (section === 'profile' && currentUser && window.loadProfilePage) window.loadProfilePage(currentUser.uid);
+      if (section === 'community' && window.loadCommunitySection) window.loadCommunitySection();
     });
   });
 
-  // Close modal when clicking X
-  if (closeModalBtn) {
-    closeModalBtn.addEventListener('click', () => {
-      window.closeModal();
-    });
-  }
-
-  // Click outside modal to close
+  if (closeModalBtn) closeModalBtn.addEventListener('click', () => window.closeModal());
   window.addEventListener('click', (e) => {
-    const modal = document.getElementById('authModal');
-    if (e.target === modal) {
-      window.closeModal();
-    }
+    if (e.target === document.getElementById('authModal')) window.closeModal();
   });
 
-  // Initialize auth, chatbot, and community
   if (window.initAuth) window.initAuth();
   if (window.initChatbot) window.initChatbot();
   if (window.initCommunity) window.initCommunity();
+  if (window.initMessaging) window.initMessaging();
+  if (window.initNotifications) window.initNotifications();
 
-  // ----- MOBILE THREE-DOT MENU BUTTON -----
   const mobileMenuBtn = document.getElementById('mobileMenuBtn');
   if (mobileMenuBtn) {
     mobileMenuBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      e.stopPropagation();
       const user = firebase.auth().currentUser;
-      if (!user) {
-        // Not logged in → show login modal
-        window.showModal();
-      } else {
-        // Logged in → show user dropdown (right-aligned)
-        positionUserMenuRight(mobileMenuBtn);
-      }
+      if (!user) window.showModal();
+      else positionUserMenuRight(mobileMenuBtn);
     });
   }
+
+  // Floating buttons
+  document.getElementById('chatFloatingBtn')?.addEventListener('click', () => window.openChatModal());
+  document.getElementById('notifFloatingBtn')?.addEventListener('click', () => window.openNotificationModal());
 });
+
+window.logoutUser = function() {
+  firebase.auth().signOut();
+  window.showToast('Logged out', 'info');
+};
