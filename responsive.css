@@ -1,47 +1,84 @@
-/* responsive.css - Mobile & Tablet Overrides (does NOT affect desktop) */
 
-/* ---------- Tablet and below (max-width: 1024px) ---------- */
 @media (max-width: 1024px) {
   .app-container {
     padding: 1rem;
   }
 }
 
-/* ---------- Mobile Landscape & Portrait (max-width: 768px) ---------- */
 @media (max-width: 768px) {
-  /* General container */
+  input, textarea, select, .chat-input-area textarea, .comment-input, .reply-input {
+    font-size: 16px !important;
+  }
+
   .app-container {
     padding: 0.75rem;
   }
-
-  /* Header – keep navigation in one scrollable line */
   .main-header {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    gap: 0.75rem;
-    padding: 0.6rem 1rem;
-    border-radius: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
   }
-  .main-header::-webkit-scrollbar {
-    display: none;
+  .header-top {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end; /* 3-dot right */
+    min-height: 40px;
   }
   .logo {
-    font-size: 1.2rem;
-    flex-shrink: 0;
-  }
-  .nav-links {
-    flex-wrap: nowrap;
-    flex-shrink: 0;
-    gap: 0.25rem;
-  }
-  .nav-btn {
-    padding: 0.4rem 0.9rem;
-    font-size: 0.85rem;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
     white-space: nowrap;
+    font-size: 1.2rem;
+  }
+  /* Scrollable nav links */
+  .nav-links {
+    display: flex;
+    flex-wrap: nowrap;    
+    overflow-x: auto;    
+    white-space: nowrap;
+    gap: 0.4rem;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .nav-links::-webkit-scrollbar {
+    display: none;
   }
 
-  /* Home – palette grid */
+  .nav-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  .nav-links #authBtn {
+    display: none !important;
+  }
+  .mobile-menu-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0.3rem 0.5rem;
+    border-radius: 50%;
+    margin-right: 20px;
+  }
+  .mobile-menu-btn:hover,
+  .mobile-menu-btn:active {
+    background: #e2e8f0;
+  }
+
+  /* Adjust dropdown position for mobile menu (right-aligned) */
+  .user-dropdown {
+    min-width: 160px;
+  }
+
+  /* ===== HOME GRID ===== */
   .palettes-grid {
     grid-template-columns: 1fr;
     gap: 1rem;
@@ -66,7 +103,7 @@
     font-size: 0.7rem;
   }
 
-  /* Community – Facebook style mobile layout */
+  /* ===== COMMUNITY (Facebook style) ===== */
   .community-layout {
     flex-direction: column;
     gap: 1rem;
@@ -104,11 +141,11 @@
     height: 28px;
   }
   .comment-input {
-    font-size: 0.8rem;
-    padding: 6px 10px;
+    font-size: 16px !important;
+    padding: 8px 12px;
   }
 
-  /* Chatbot – DeepSeek style */
+  /* ===== CHATBOT: textarea full width, buttons side by side ===== */
   .chat-container {
     height: 75vh;
   }
@@ -127,17 +164,26 @@
     font-size: 0.85rem;
   }
   .chat-input-area {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
     padding: 0.8rem;
   }
   .chat-input-area textarea {
-    font-size: 0.85rem;
-    padding: 0.6rem 1rem;
+    flex: 0 0 100%;
+    min-height: 50px;
+    padding: 10px 14px;
+    font-size: 16px !important;
+    margin-bottom: 4px;
   }
   .send-btn, .random-btn {
-    height: 40px;
-    padding: 0 1rem;
-    font-size: 0.8rem;
+    flex: 1;
+    height: 44px;
+    font-size: 0.9rem;
+    margin: 0;
   }
+
   .swatch-item {
     width: 85px;
   }
@@ -152,7 +198,7 @@
     max-width: 240px;
   }
 
-  /* Profile page */
+  /* ===== PROFILE ===== */
   .profile-container {
     border-radius: 1.5rem;
   }
@@ -178,13 +224,16 @@
     padding: 0.8rem;
   }
 
-  /* Modals */
+  /* ===== MODALS ===== */
   .modal-content {
     padding: 1.5rem;
     width: 92%;
   }
+  .modal-content input, .modal-content textarea {
+    font-size: 16px !important;
+  }
 
-  /* Toast */
+  /* ===== TOAST ===== */
   .toast {
     bottom: 15px;
     right: 15px;
@@ -193,7 +242,6 @@
     font-size: 0.8rem;
   }
 
-  /* Footer */
   footer {
     margin-top: 1.5rem;
     font-size: 0.7rem;
@@ -212,7 +260,7 @@
     font-size: 1rem;
   }
   .nav-btn {
-    padding: 0.3rem 0.7rem;
+    padding: 0.35rem 0.7rem;
     font-size: 0.75rem;
   }
   .palette-swatch-row {
@@ -242,9 +290,17 @@
   .reaction-btn {
     font-size: 0.75rem;
   }
+  .chat-input-area textarea {
+    min-height: 44px;
+    padding: 8px 12px;
+  }
+  .send-btn, .random-btn {
+    height: 40px;
+    font-size: 0.8rem;
+  }
 }
 
-/* ---------- Very narrow devices (max-width: 360px) ---------- */
+/* ---------- Very narrow (max-width: 360px) ---------- */
 @media (max-width: 360px) {
   .post-reactions {
     flex-wrap: wrap;
@@ -256,25 +312,19 @@
   .swatch-color {
     height: 45px;
   }
-  .chat-input-area {
-    flex-wrap: wrap;
-  }
-  .chat-input-area textarea {
-    width: 100%;
-    order: 1;
-  }
-  .send-btn, .random-btn {
-    flex: 1;
-    order: 2;
+  .nav-btn {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.7rem;
   }
 }
 
-/* ---------- Touch-friendly tap targets ---------- */
+/* ---------- Touch-friendly active states ---------- */
 @media (hover: none) and (pointer: coarse) {
   button, .nav-btn, .reaction-btn, .comment-submit, .reply-submit,
   .follow-suggestion-btn, .post-palette-btn, .submit-post-btn,
   .edit-profile-btn, .logout-btn, .upload-icon, .swatch-item,
-  .delete-btn, .copy-all-btn, .share-palette-btn, .ask-bot-btn {
+  .delete-btn, .copy-all-btn, .share-palette-btn, .ask-bot-btn,
+  .mobile-menu-btn {
     cursor: pointer;
     transition: all 0.2s ease;
   }

@@ -1,4 +1,4 @@
-// script.js - Main entry (global version) with Community section
+// script.js - Main entry (global version) with Community section and mobile three-dot menu
 
 const firebaseConfig = {
   apiKey: "AIzaSyDsp1FGBBDL8bFEVBY1OeaN_OSTX8fG0Fw",
@@ -70,7 +70,7 @@ window.closeModal = function() {
   if (modal) modal.style.display = 'none';
 };
 
-// Create user dropdown menu
+// Create user dropdown menu (same as before)
 function createUserMenu() {
   if (userMenuDropdown) userMenuDropdown.remove();
   const menu = document.createElement('div');
@@ -98,13 +98,35 @@ function createUserMenu() {
   return menu;
 }
 
-// Position dropdown relative to auth button
+// Position dropdown relative to auth button (left-aligned)
 function positionUserMenu(btn) {
   if (userMenuDropdown) userMenuDropdown.remove();
   userMenuDropdown = createUserMenu();
   const rect = btn.getBoundingClientRect();
   userMenuDropdown.style.top = rect.bottom + window.scrollY + 5 + 'px';
   userMenuDropdown.style.left = rect.left + window.scrollX + 'px';
+  const closeHandler = (e) => {
+    if (!userMenuDropdown.contains(e.target) && e.target !== btn) {
+      userMenuDropdown.remove();
+      userMenuDropdown = null;
+      document.removeEventListener('click', closeHandler);
+    }
+  };
+  setTimeout(() => {
+    document.addEventListener('click', closeHandler);
+  }, 100);
+}
+
+// NEW: Position dropdown aligned to the RIGHT edge of the button (for mobile three-dot)
+function positionUserMenuRight(btn) {
+  if (userMenuDropdown) userMenuDropdown.remove();
+  userMenuDropdown = createUserMenu();
+  const rect = btn.getBoundingClientRect();
+  userMenuDropdown.style.top = rect.bottom + window.scrollY + 5 + 'px';
+  // Align right edge: button's right edge - dropdown width
+  const dropdownWidth = userMenuDropdown.offsetWidth;
+  userMenuDropdown.style.left = (rect.right - dropdownWidth) + window.scrollX + 'px';
+  userMenuDropdown.style.right = 'auto';
   const closeHandler = (e) => {
     if (!userMenuDropdown.contains(e.target) && e.target !== btn) {
       userMenuDropdown.remove();
@@ -209,4 +231,21 @@ document.addEventListener('DOMContentLoaded', () => {
   if (window.initAuth) window.initAuth();
   if (window.initChatbot) window.initChatbot();
   if (window.initCommunity) window.initCommunity();
+
+  // ----- MOBILE THREE-DOT MENU BUTTON -----
+  const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+  if (mobileMenuBtn) {
+    mobileMenuBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const user = firebase.auth().currentUser;
+      if (!user) {
+        // Not logged in → show login modal
+        window.showModal();
+      } else {
+        // Logged in → show user dropdown (right-aligned)
+        positionUserMenuRight(mobileMenuBtn);
+      }
+    });
+  }
 });
