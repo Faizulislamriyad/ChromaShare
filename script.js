@@ -74,9 +74,13 @@ function createUserMenu() {
     menu.remove();
     userMenuDropdown = null;
   });
+  // Switch Account – call the modal from login.js
   document.getElementById('switchAccountItem').addEventListener('click', () => {
-    window.logoutUser();
-    setTimeout(() => window.showModal(), 500);
+    if (window.showSwitchModal) {
+      window.showSwitchModal();
+    } else {
+      window.showToast('Switch account not ready', 'error');
+    }
     menu.remove();
     userMenuDropdown = null;
   });
