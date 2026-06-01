@@ -1,4 +1,4 @@
-// login.js – Full Account Switching (stores passwords in sessionStorage, cleared on tab close)
+// login.js – Advanced Account Switching (stores credentials in sessionStorage, cleared on tab close)
 
 window.initAuth = function() {
   const loginBtn = document.getElementById('loginBtn');
@@ -7,13 +7,12 @@ window.initAuth = function() {
   const showSignup = document.getElementById('showSignup');
   const showLogin = document.getElementById('showLogin');
 
-  const ACCOUNTS_KEY = 'chromashare_accounts';
-  const PWD_PREFIX = 'chromashare_pwd_';
-  const TOKEN_PREFIX = 'chromashare_token_';
+  const STORAGE_KEY = 'chromashare_accounts';
+  const CRED_PREFIX = 'chromashare_cred_';
 
-  // ---------- Account storage ----------
+  // Helper to save account metadata
   function getSavedAccounts() {
-    const raw = localStorage.getItem(ACCOUNTS_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
   }
 
@@ -21,83 +20,86 @@ window.initAuth = function() {
     let accounts = getSavedAccounts();
     if (!accounts.find(a => a.email === account.email)) {
       accounts.push(account);
-      localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts));
     }
     return accounts;
   }
 
   function removeAccountMeta(email) {
     let accounts = getSavedAccounts().filter(a => a.email !== email);
-    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
-    sessionStorage.removeItem(PWD_PREFIX + email);
-    sessionStorage.removeItem(TOKEN_PREFIX + email);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts));
+    // Also remove stored credential if any
+    sessionStorage.removeItem(CRED_PREFIX + email);
   }
 
-  // ---------- Storing credentials ----------
-  function storeEmailPassword(email, password) {
-    sessionStorage.setItem(PWD_PREFIX + email, password);
+  // Store credential after successful login
+  async function storeCredential(user, credential) {
+    if (credential) {
+      // For email/password, credential is EmailAuthProvider.credential
+      // For Google, credential is GoogleAuthProvider.credential
+      try {
+        // Serialize credential - not straightforward. Instead, store idToken for Google, and for email we can't.
+        // Simpler: store provider and for email we store a flag that we have no stored password.
+        // Actually, to make switching seamless, we need to store refresh tokens.
+        // Firebase does not expose refresh token easily.
+        // So we'll only allow auto-switch for Google.
+        if (credential.providerId === 'google.com') {
+          const accessToken = credential.accessToken;
+          if (accessToken) {
+            sessionStorage.setItem(CRED_PREFIX + user.email, JSON.stringify({ provider: 'google', token: accessToken }));
+          }
+        }
+      } catch(e) {}
+    }
   }
 
-  function getStoredPassword(email) {
-    return sessionStorage.getItem(PWD_PREFIX + email);
-  }
-
-  function storeGoogleToken(email, accessToken) {
-    sessionStorage.setItem(TOKEN_PREFIX + email, accessToken);
-  }
-
-  function getStoredGoogleToken(email) {
-    return sessionStorage.getItem(TOKEN_PREFIX + email);
-  }
-
-  // ---------- Switch logic ----------
   async function switchToAccount(account) {
     const currentUser = firebase.auth().currentUser;
     if (currentUser && currentUser.email === account.email) return;
-
-    // Try Google with stored token
-    if (account.provider === 'google') {
-      const token = getStoredGoogleToken(account.email);
-      if (token) {
-        try {
-          const credential = firebase.auth.GoogleAuthProvider.credential(token, null);
+    
+    // Try to sign in with stored credential
+    const stored = sessionStorage.getItem(CRED_PREFIX + account.email);
+    if (stored) {
+      try {
+        const credData = JSON.parse(stored);
+        if (credData.provider === 'google') {
+          const credential = firebase.auth.GoogleAuthProvider.credential(credData.token, null);
           await firebase.auth().signInWithCredential(credential);
           window.showToast(`Switched to ${account.email}`, 'success');
-          return;
-        } catch (e) { console.warn(e); }
-      }
-      // Fallback to new Google sign-in
+          return true;
+        }
+      } catch(e) { console.warn(e); }
+    }
+    
+    // If no stored credential, fallback to normal login (prompt for password)
+    if (account.provider === 'google') {
       const provider = new firebase.auth.GoogleAuthProvider();
       try {
-        const result = await firebase.auth().signInWithPopup(provider);
-        const newToken = result.credential.accessToken;
-        if (newToken) storeGoogleToken(account.email, newToken);
+        await firebase.auth().signInWithPopup(provider);
         window.showToast(`Switched to ${account.email}`, 'success');
-      } catch (err) {
+        return true;
+      } catch(err) {
         window.showToast(err.message, 'error');
+        return false;
       }
-      return;
+    } else {
+      const pwd = prompt(`Enter password for ${account.email}`);
+      if (pwd) {
+        try {
+          await firebase.auth().signInWithEmailAndPassword(account.email, pwd);
+          window.showToast(`Switched to ${account.email}`, 'success');
+          return true;
+        } catch(err) {
+          window.showToast(err.message, 'error');
+          return false;
+        }
+      }
     }
-
-    // Email/Password – try stored password, else prompt
-    let password = getStoredPassword(account.email);
-    if (!password) {
-      password = prompt(`Enter password for ${account.email}`);
-      if (!password) return;
-      storeEmailPassword(account.email, password);
-    }
-    try {
-      await firebase.auth().signInWithEmailAndPassword(account.email, password);
-      window.showToast(`Switched to ${account.email}`, 'success');
-    } catch (err) {
-      window.showToast(err.message, 'error');
-      // Remove stored password on failure
-      sessionStorage.removeItem(PWD_PREFIX + account.email);
-    }
+    return false;
   }
 
-  // ---------- Switch Account Modal ----------
-  window.showSwitchModal = function() {
+  // Show switch modal
+  function showSwitchModal() {
     let modal = document.getElementById('switchAccountModal');
     if (!modal) {
       modal = document.createElement('div');
@@ -115,12 +117,12 @@ window.initAuth = function() {
       modal.querySelector('.close-switch-modal').addEventListener('click', () => modal.style.display = 'none');
       window.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
     }
-
+    
     const accounts = getSavedAccounts();
     const container = document.getElementById('accountList');
     const currentUser = firebase.auth().currentUser;
     const currentEmail = currentUser ? currentUser.email : null;
-
+    
     if (accounts.length === 0) {
       container.innerHTML = '<div class="empty-state">No saved accounts. Add one below.</div>';
     } else {
@@ -140,12 +142,13 @@ window.initAuth = function() {
       });
       html += '</div>';
       container.innerHTML = html;
-
+      
       // Switch account click
       document.querySelectorAll('.account-switch-item').forEach(el => {
         el.addEventListener('click', async (e) => {
           if (e.target.classList.contains('remove-account-btn') || e.target.closest('.remove-account-btn')) return;
           const email = el.dataset.email;
+          const provider = el.dataset.provider;
           const account = accounts.find(a => a.email === email);
           if (account) {
             modal.style.display = 'none';
@@ -153,7 +156,7 @@ window.initAuth = function() {
           }
         });
       });
-
+      
       // Remove account
       document.querySelectorAll('.remove-account-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
@@ -161,24 +164,27 @@ window.initAuth = function() {
           const email = btn.dataset.email;
           if (confirm(`Remove ${email} from saved accounts? This does not delete the account itself.`)) {
             removeAccountMeta(email);
-            window.showSwitchModal(); // refresh modal
+            showSwitchModal(); // refresh modal
           }
         });
       });
     }
-
+    
     document.getElementById('addAccountBtn').onclick = () => {
       modal.style.display = 'none';
       window.showModal();
     };
-
+    
     modal.style.display = 'flex';
-  };
+  }
 
-  // ---------- Auto‑save accounts after login ----------
+  // After successful login, save account and try to store credential (for Google)
   firebase.auth().onAuthStateChanged(async (user) => {
     if (user) {
       let provider = 'email';
+      let credential = null;
+      // For Google, we can get credential from last sign-in result
+      // We'll capture in the handlers
       if (user.providerData && user.providerData[0]) {
         provider = user.providerData[0].providerId === 'google.com' ? 'google' : 'email';
       }
@@ -190,10 +196,34 @@ window.initAuth = function() {
         uid: user.uid
       };
       saveAccountMeta(account);
+      
+      // Try to store credential if available (set in the login handlers)
+      if (window._lastCredential && window._lastCredential.providerId === 'google.com') {
+        const token = window._lastCredential.accessToken;
+        if (token) {
+          sessionStorage.setItem(CRED_PREFIX + user.email, JSON.stringify({ provider: 'google', token: token }));
+        }
+        window._lastCredential = null;
+      }
     }
   });
 
-  // ---------- Original Login Handlers ----------
+  // Override logout and attach switch handler
+  const originalLogout = window.logoutUser;
+  window.logoutUser = function() {
+    firebase.auth().signOut();
+    window.showToast('Logged out', 'info');
+  };
+  
+  // Attach switch to the dropdown item (will be created later)
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#switchAccountItem')) {
+      e.preventDefault();
+      showSwitchModal();
+    }
+  });
+
+  // ---------- Login Handlers (capture credential for Google) ----------
   if (loginBtn) {
     loginBtn.onclick = async () => {
       const email = document.getElementById('loginEmail')?.value;
@@ -203,12 +233,12 @@ window.initAuth = function() {
         return;
       }
       try {
-        await firebase.auth().signInWithEmailAndPassword(email, pwd);
-        storeEmailPassword(email, pwd); // store for switching later
+        const cred = await firebase.auth().signInWithEmailAndPassword(email, pwd);
         window.closeModal();
         window.showToast('Logged in successfully!', 'success');
         document.getElementById('loginEmail').value = '';
         document.getElementById('loginPassword').value = '';
+        // For email, we cannot store password, so no auto-switch later.
       } catch (err) {
         window.showToast(err.message, 'error');
       }
@@ -221,8 +251,7 @@ window.initAuth = function() {
       try {
         const result = await firebase.auth().signInWithPopup(provider);
         const user = result.user;
-        const token = result.credential.accessToken;
-        if (token) storeGoogleToken(user.email, token);
+        window._lastCredential = result.credential;
         const userRef = window.db.collection('users').doc(user.uid);
         const snap = await userRef.get();
         if (!snap.exists) {
@@ -261,8 +290,6 @@ window.initAuth = function() {
         await window.db.collection('users').doc(cred.user.uid).set({
           username, bio: '', favColor: '#3b82f6', birthday: '', photoURL: '', email
         });
-        // After signup, store password
-        storeEmailPassword(email, pwd);
         window.closeModal();
         window.showToast('Account created! Welcome!', 'success');
         document.getElementById('signupEmail').value = '';
